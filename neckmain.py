@@ -18,7 +18,7 @@ def create_angle_matrix(angles):
 
 
 def main():
-    saved_data = get_pose_angle(save_interval=10)  # 10초마다 각도 저장
+    saved_data = get_pose_angle(save_interval=2)  # 10초마다 각도 저장
 
     if saved_data:  # saved_data가 비어있지 않은 경우에만 처리
         print("기울기 각도 데이터:")

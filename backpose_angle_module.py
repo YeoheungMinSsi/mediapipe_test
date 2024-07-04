@@ -6,6 +6,8 @@ from PIL import Image, ImageFont, ImageDraw
 import time
 import csv
 import os
+from gtts import gTTS
+from playsound import playsound
 
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
@@ -37,7 +39,7 @@ def draw_text_korean(image, text, position, font_path, font_size, color):
     return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
 
-def get_pose_angle(save_interval=10):
+def get_pose_angle(save_interval=2):
     cap = cv2.VideoCapture(0)
     is_recording = False
     is_paused = False
@@ -122,10 +124,10 @@ def get_pose_angle(save_interval=10):
             cv2.rectangle(image, (120, image_height - 60), (220, image_height - 10), (0, 0, 255), -1)
             cv2.rectangle(image, (230, image_height - 60), (330, image_height - 10), (255, 255, 0), -1)
             image = draw_text_korean(image, "시작" if not is_recording else "기록 중", (20, image_height - 50), font_path,
-                                     20, (0, 0, 0))
+                                    20, (0, 0, 0))
             image = draw_text_korean(image, "정지", (130, image_height - 50), font_path, 20, (0, 0, 0))
             image = draw_text_korean(image, "일시정지" if not is_paused else "재개", (240, image_height - 50), font_path, 20,
-                                     (0, 0, 0))
+                                    (0, 0, 0))
 
             cv2.imshow('MediaPipe Pose', image)
 
@@ -165,13 +167,35 @@ def get_pose_angle(save_interval=10):
 
             cv2.setMouseCallback('MediaPipe Pose', mouse_callback)
 
-            # 10초마다 각도 저장
+            # 10초마다 각도 저장 및 평균 각도 계산
             if is_recording and not is_paused and elapsed_time >= last_save_time + save_interval:
                 saved_data.append((elapsed_time, current_angle))
                 with open(csv_filename, mode='a', newline='') as f:
                     writer = csv.writer(f)
                     writer.writerow([elapsed_time, current_angle])
                 print(f"값 저장: 시간 {elapsed_time}초, 각도 {current_angle}도")
+
+                # 10초마다 평균 각도 계산 및 출력
+                if elapsed_time % 10 == 0:
+                    last_10_angles = [angle for time, angle in saved_data if elapsed_time - 10 < time <= elapsed_time]
+                    if last_10_angles:
+                        average_angle = np.mean(last_10_angles)
+                        print(f"{elapsed_time}초까지의 평균 각도: {average_angle:.2f}도")
+
+                        # 평균 각도가 1도 이상일 때 TTS로 경고 메시지 출력
+                        if average_angle >= 1:
+                            alert_filename = f"alert_{int(time.time())}.mp3"  # 고유한 파일명 생성
+                            tts = gTTS("허리를 펴세요", lang='ko')
+                            tts.save(alert_filename)
+                            playsound(alert_filename)
+                            os.remove(alert_filename) 
+                    # CSV 파일 초기화
+                    with open(csv_filename, mode='w', newline='') as f:
+                        writer = csv.writer(f)
+                        writer.writerow(['back_time', 'back_angle'])
+
+                    saved_data = []
+
                 last_save_time = elapsed_time
 
             key = cv2.waitKey(5) & 0xFF
@@ -179,7 +203,7 @@ def get_pose_angle(save_interval=10):
                 print("프로그램 종료")
                 print("저장된 모든 값:")
                 for data in saved_data:
-                    print(f"시간: {data[0]}초, 각도: {data[1]}도")
+                    print(f"시간: {data[0]}초, 각도 {data[1]}도")
                 break
 
     cap.release()
