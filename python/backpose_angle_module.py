@@ -13,7 +13,15 @@ mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 
+# 사진 저장 경로 설정
+photo_save_dir1 = 'back_images'
 
+# back_images 폴더 내의 모든 파일 삭제
+for filename in os.listdir(photo_save_dir1):
+    file_path = os.path.join(photo_save_dir1, filename)
+    os.remove(file_path)
+    print(f"Deleted photo: {file_path}")
+        
 def create_midpoint(point1, point2):
     return type('Landmark', (), {
         'x': (point1.x + point2.x) / 2,
@@ -39,7 +47,7 @@ def draw_text_korean(image, text, position, font_path, font_size, color):
     return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
 
-def get_pose_angle(save_interval=2):
+def get_pose_angle(save_interval=2, photo_save_interval=2):
     cap = cv2.VideoCapture(0)
     is_recording = False
     is_paused = False
@@ -51,6 +59,7 @@ def get_pose_angle(save_interval=2):
     saved_data = []
     elapsed_time = 0
     last_save_time = 0
+    last_photo_save_time = 0  # 사진 저장 시간을 추적하기 위한 변수
 
     # CSV 파일 초기화
     with open(csv_filename, mode='w', newline='') as f:
@@ -191,6 +200,14 @@ def get_pose_angle(save_interval=2):
                             os.remove(alert_filename)
 
                 last_save_time = elapsed_time
+                
+            # 2초마다 사진 저장
+            if is_recording and not is_paused and elapsed_time >= last_photo_save_time + photo_save_interval:
+                os.makedirs(photo_save_dir1, exist_ok=True)
+                photo_filename = os.path.join(photo_save_dir1, f"photo_{int(time.time())}.jpg")
+                cv2.imwrite(photo_filename, image)
+                print(f"사진 저장: {photo_filename}")
+                last_photo_save_time = elapsed_time
 
             key = cv2.waitKey(5) & 0xFF
             if key == 27:  # ESC 키로 종료
@@ -198,7 +215,15 @@ def get_pose_angle(save_interval=2):
                 print("저장된 모든 값:")
                 for data in saved_data:
                     print(f"시간: {data[0]}초, 각도 {data[1]}도")
+                
+                # 프로그램 종료 시 사진 파일 삭제
+                for filename in os.listdir(photo_save_dir1):
+                    file_path = os.path.join(photo_save_dir1, filename)
+                    os.remove(file_path)
+                    print(f"Deleted photo: {file_path}")
+                
                 break
+            
 
     cap.release()
     cv2.destroyAllWindows()

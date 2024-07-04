@@ -45,6 +45,19 @@ def get_pose_angle(save_interval=2):
     elapsed_time = 0
     last_save_time = 0
 
+    # 사진 저장 경로 설정
+    photo_save_dir2 = 'neck_images'
+
+    # neck_images 폴더 내의 모든 파일 삭제
+    for filename in os.listdir(photo_save_dir2):
+        file_path = os.path.join(photo_save_dir2, filename)
+        os.remove(file_path)
+        print(f"Deleted photo: {file_path}")
+
+    os.makedirs(photo_save_dir2, exist_ok=True)
+    last_photo_save_time = 0  # 마지막으로 사진 저장한 시간을 추적하기 위한 변수
+    photo_save_interval = 2  # 사진 저장 간격(초)
+
     # CSV 파일 초기화
     with open(csv_filename, mode='w', newline='') as f:
         writer = csv.writer(f)
@@ -125,7 +138,7 @@ def get_pose_angle(save_interval=2):
 
             # 마우스 클릭 이벤트 처리
             def mouse_callback(event, x, y, flags, param):
-                nonlocal is_recording, is_paused, start_time, elapsed_time, last_save_time, total_pause_time, pause_start_time
+                nonlocal is_recording, is_paused, start_time, elapsed_time, last_save_time, total_pause_time, pause_start_time, last_photo_save_time
                 if event == cv2.EVENT_LBUTTONDOWN:
                     if 10 <= x <= 110 and image_height - 60 <= y <= image_height - 10:
                         if not is_recording:
@@ -133,6 +146,7 @@ def get_pose_angle(save_interval=2):
                             start_time = time.time()
                             last_save_time = 0
                             total_pause_time = 0
+                            last_photo_save_time = 0  # 초기화
                             print("기록 시작")
                         elif is_paused:
                             is_paused = False
@@ -147,6 +161,13 @@ def get_pose_angle(save_interval=2):
                             print("저장된 값:")
                             for data in saved_data:
                                 print(f"시간: {data[0]}초, 각도: {data[1]}도")
+                            
+                            # 사진 파일 삭제
+                            for filename in os.listdir(photo_save_dir2):
+                                file_path = os.path.join(photo_save_dir2, filename)
+                                os.remove(file_path)
+                                print(f"Deleted photo: {file_path}")
+                            
                     elif 230 <= x <= 330 and image_height - 60 <= y <= image_height - 10:
                         if is_recording and not is_paused:
                             is_paused = True
@@ -181,7 +202,14 @@ def get_pose_angle(save_interval=2):
                             tts = gTTS("목을 똑바로 하세요", lang='ko')
                             tts.save(alert_filename)
                             playsound(alert_filename)
-                            os.remove(alert_filename) 
+                            os.remove(alert_filename)
+
+            # 2초마다 사진 저장
+            if is_recording and not is_paused and elapsed_time >= last_photo_save_time + photo_save_interval:
+                photo_filename = os.path.join(photo_save_dir2, f"photo_{int(time.time())}.jpg")
+                cv2.imwrite(photo_filename, image)
+                print(f"사진 저장: {photo_filename}")
+                last_photo_save_time = elapsed_time
 
             key = cv2.waitKey(5) & 0xFF
             if key == 27:  # ESC 키로 종료
@@ -189,6 +217,13 @@ def get_pose_angle(save_interval=2):
                 print("저장된 모든 값:")
                 for data in saved_data:
                     print(f"시간: {data[0]}초, 각도: {data[1]}도")
+                
+                # 프로그램 종료 시 사진 파일 삭제
+                for filename in os.listdir(photo_save_dir2):
+                    file_path = os.path.join(photo_save_dir2, filename)
+                    os.remove(file_path)
+                    print(f"Deleted photo: {file_path}")
+                
                 break
 
     cap.release()
