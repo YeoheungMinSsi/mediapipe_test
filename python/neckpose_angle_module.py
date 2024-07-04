@@ -1,14 +1,16 @@
 import cv2
 import mediapipe as mp
 import numpy as np
+import math
 from PIL import Image, ImageFont, ImageDraw
 import time
 import csv
 import os
-from gtts import gTTS
-from playsound import playsound
 
+mp_drawing = mp.solutions.drawing_utils
+mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
+
 
 def create_midpoint(point1, point2):
     return type('Landmark', (), {
@@ -17,12 +19,14 @@ def create_midpoint(point1, point2):
         'z': (point1.z + point2.z) / 2
     })
 
+
 def calculate_angle(a, b, c):
     ba = np.array([a.x - b.x, a.y - b.y])
     bc = np.array([c.x - b.x, c.y - b.y])
     cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
     angle = np.arccos(cosine_angle)
     return np.degrees(angle)
+
 
 def draw_text_korean(image, text, position, font_path, font_size, color):
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -32,7 +36,8 @@ def draw_text_korean(image, text, position, font_path, font_size, color):
     draw.text(position, text, font=font, fill=color)
     return cv2.cvtColor(np.array(pil_image), cv2.COLOR_RGB2BGR)
 
-def get_pose_angle(save_interval=2):
+
+def get_pose_angle(save_interval=10):
     cap = cv2.VideoCapture(0)
     is_recording = False
     is_paused = False
@@ -168,28 +173,6 @@ def get_pose_angle(save_interval=2):
                 print(f"값 저장: 시간 {elapsed_time}초, 각도 {current_angle}도")
                 last_save_time = elapsed_time
 
-                # 평균 각도 계산 및 경고 메시지 출력
-                if elapsed_time % 10 == 0:
-                    last_10_angles = [angle for time, angle in saved_data if elapsed_time - 10 < time <= elapsed_time]
-                    if last_10_angles:
-                        average_angle = np.mean(last_10_angles)
-                        print(f"{elapsed_time}초까지의 평균 각도: {average_angle:.2f}도")
-
-                        # 평균 각도가 1도 이상일 때 경고 메시지 출력
-                        if average_angle >= 1:
-                            alert_filename = f"alert2_{int(time.time())}.mp3"  # 고유한 파일명 생성
-                            tts = gTTS("목을 똑바로 하세요", lang='ko')
-                            tts.save(alert_filename)
-                            playsound(alert_filename)
-                            os.remove(alert_filename) 
-
-                # CSV 파일 초기화
-                with open(csv_filename, mode='w', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(['neck_time', 'neck_angle'])
-
-                saved_data = []
-
             key = cv2.waitKey(5) & 0xFF
             if key == 27:  # ESC 키로 종료
                 print("프로그램 종료")
@@ -202,6 +185,7 @@ def get_pose_angle(save_interval=2):
     cv2.destroyAllWindows()
     print(f"CSV 파일이 저장되었습니다: {os.path.abspath(csv_filename)}")
     return saved_data
+
 
 if __name__ == "__main__":
     get_pose_angle()
